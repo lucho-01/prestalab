@@ -55,48 +55,68 @@ async function empujarOutbox() {
 // ---------------- pull ----------------
 async function bajarTodo() {
   const data = await apiFetch('/api/mobile/sync');
+  const resumen = { salas: 0, articulos: 0, prestamos: 0, fallos: 0 };
 
-  for (const sala of data.salas || []) {
-    try {
-      aplicarSala(sala);
-    } catch (e) {
-      console.warn('aplicarSala:', e?.message);
+  const aplicar = (lista, fn, clave, etiqueta) => {
+    for (const item of lista || []) {
+      try {
+        fn(item);
+        resumen[clave] += 1;
+      } catch (e) {
+        resumen.fallos += 1;
+        console.warn(`aplicar ${etiqueta}:`, e?.message);
+      }
     }
-  }
+  };
 
-  for (const articulo of data.articulos || []) {
-    try {
-      aplicarArticulo(articulo);
-    } catch (e) {
-      console.warn('aplicarArticulo:', e?.message);
-    }
-  }
+  aplicar(data.salas, aplicarSala, 'salas', 'sala');
+  aplicar(data.articulos, aplicarArticulo, 'articulos', 'artículo');
+  aplicar(data.prestamos, aplicarPrestamo, 'prestamos', 'préstamo');
 
-  for (const prestamo of data.prestamos || []) {
-    try {
-      aplicarPrestamo(prestamo);
-    } catch (e) {
-      console.warn('aplicarPrestamo:', e?.message);
-    }
+  // Si el servidor devolvió catálogo pero no se pudo guardar nada, es un
+  // error real (esquema/DB), no una simple lista vacía: hay que avisar.
+  const catalogosRecibidos =
+    (data.salas?.length || 0) + (data.articulos?.length || 0);
+  const catalogosGuardados = resumen.salas + resumen.articulos;
+  if (catalogosRecibidos > 0 && catalogosGuardados === 0) {
+    throw new Error(
+      'No se pudo guardar el catálogo en el dispositivo. Cierra y vuelve a abrir la app.',
+    );
   }
 
   emit('salas');
   emit('articulos');
   emit('prestamos');
+  emit('sync');
+  return resumen;
 }
 
 // ---------------- orquestación ----------------
+let ultimoResultado = { ok: null, error: null, at: null };
+
+/** Último estado de sincronización (para pantallas de diagnóstico). */
+export const obtenerUltimoSync = () => ultimoResultado;
+
 export async function sincronizar(uid) {
-  if (!uid || sincronizando) return { ok: false, razon: 'en curso o sin usuario' };
+  if (!uid) {
+    return { ok: false, error: 'Sesión no iniciada.' };
+  }
+  if (sincronizando) {
+    return { ok: true, skipped: true };
+  }
+
   sincronizando = true;
-  const resultado = { ok: true, error: null };
+  let resultado = { ok: true, error: null };
 
   try {
     await empujarOutbox();
-    await bajarTodo();
+    const resumen = await bajarTodo();
+    resultado = { ...resultado, ...resumen };
   } catch (e) {
-    resultado.ok = false;
-    resultado.error = e?.message || 'error de sincronización';
+    resultado = {
+      ok: false,
+      error: e?.message || 'Error de sincronización',
+    };
     console.warn('Sync falló:', resultado.error);
 
     // Token vencido/inválido: se cierra la sesión para que vuelva a entrar.
@@ -105,6 +125,9 @@ export async function sincronizar(uid) {
     }
   } finally {
     sincronizando = false;
+    ultimoResultado = { ...resultado, at: new Date().toISOString() };
+    emit('sync');
   }
+
   return resultado;
 }

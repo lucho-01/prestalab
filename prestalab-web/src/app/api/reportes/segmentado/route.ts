@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { SolicitudPrestamo, Usuario, Sala } from '@/types';
+import { requireStaff } from '@/lib/guards';
 
 export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if ('response' in guard) return guard.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const salaId = searchParams.get('salaId') || 'todas';
@@ -17,25 +21,37 @@ export async function GET(request: NextRequest) {
       adminDb.collection('salas').get(),
     ]);
 
-    let solicitudes: SolicitudPrestamo[] = solicitudesSnap.docs.map(d => ({ id: d.id, ...d.data() } as SolicitudPrestamo));
-    const usuarios: Usuario[] = usuariosSnap.docs.map(d => ({ id: d.id, ...d.data() } as Usuario));
-    const salas: Sala[] = salasSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sala));
+    const labs = guard.user.laboratoriosAsignados || [];
+    const esAdmin = guard.user.rol === 'admin';
 
-    // Crear mapa de usuario para enriquecer gÃ©nero y rol
-    const userMap: { [uid: string]: Usuario } = {};
-    for (const u of usuarios) {
-      userMap[u.id] = u;
+    let solicitudes: SolicitudPrestamo[] = solicitudesSnap.docs.map(
+      (d) => ({ id: d.id, ...d.data() }) as SolicitudPrestamo,
+    );
+    const usuarios: Usuario[] = usuariosSnap.docs.map(
+      (d) => ({ id: d.id, ...d.data() }) as Usuario,
+    );
+    let salas: Sala[] = salasSnap.docs.map(
+      (d) => ({ id: d.id, ...d.data() }) as Sala,
+    );
+
+    if (!esAdmin) {
+      solicitudes = solicitudes.filter((s) => labs.includes(s.salaId));
+      salas = salas.filter((s) => labs.includes(s.id));
     }
+
+    // Mapa de usuarios para completar género y rol cuando el préstamo no los trae.
+    const userMap: { [uid: string]: Usuario } = {};
+    for (const u of usuarios) userMap[u.id] = u;
 
     // Filtrar por sala
     if (salaId !== 'todas') {
-      solicitudes = solicitudes.filter(s => s.salaId === salaId);
+      solicitudes = solicitudes.filter((s) => s.salaId === salaId);
     }
 
     // Filtrar por fechas
     if (fechaInicio) {
       const inicio = new Date(fechaInicio).getTime();
-      solicitudes = solicitudes.filter(s => {
+      solicitudes = solicitudes.filter((s) => {
         const f = s.fechaInicio || s.fechaSolicitud;
         if (!f) return true;
         return new Date(f).getTime() >= inicio;
@@ -44,43 +60,38 @@ export async function GET(request: NextRequest) {
 
     if (fechaFin) {
       const fin = new Date(fechaFin).getTime() + (24 * 60 * 60 * 1000 - 1);
-      solicitudes = solicitudes.filter(s => {
+      solicitudes = solicitudes.filter((s) => {
         const f = s.fechaFin || s.fechaSolicitud;
         if (!f) return true;
         return new Date(f).getTime() <= fin;
       });
     }
 
-    // Enriquecer solicitudes con el gÃ©nero del usuario si no venÃ­a en la solicitud
-    solicitudes = solicitudes.map(s => {
+    // Completar género y rol del solicitante
+    solicitudes = solicitudes.map((s) => {
       const u = userMap[s.userId];
-      const userGen = s.userGenero || u?.genero || 'Otro';
-      const uRol = s.userRol || u?.rol || 'estudiante';
       return {
         ...s,
-        userGenero: userGen,
-        userRol: uRol,
+        userGenero: s.userGenero || u?.genero || 'Otro',
+        userRol: s.userRol || u?.rol || 'estudiante',
       };
     });
 
-    // Filtrar por gÃ©nero
     if (genero !== 'todos') {
-      solicitudes = solicitudes.filter(s => s.userGenero === genero);
+      solicitudes = solicitudes.filter((s) => s.userGenero === genero);
     }
-
-    // Filtrar por rol
     if (rol !== 'todos') {
-      solicitudes = solicitudes.filter(s => s.userRol === rol);
+      solicitudes = solicitudes.filter((s) => s.userRol === rol);
     }
 
-    // Desglose por gÃ©nero
+    // Desglose por género
     const generoCounts = {
-      Masculino: solicitudes.filter(s => s.userGenero === 'Masculino').length,
-      Femenino: solicitudes.filter(s => s.userGenero === 'Femenino').length,
-      Otro: solicitudes.filter(s => s.userGenero === 'Otro').length,
+      Masculino: solicitudes.filter((s) => s.userGenero === 'Masculino').length,
+      Femenino: solicitudes.filter((s) => s.userGenero === 'Femenino').length,
+      Otro: solicitudes.filter((s) => s.userGenero === 'Otro').length,
     };
 
-    // Desglose por laboratorio y gÃ©nero (para Highcharts stacked column)
+    // Desglose por laboratorio y género (columnas apiladas)
     const salasSegmentadas: {
       [id: string]: {
         codigo: string;
@@ -119,23 +130,9 @@ export async function GET(request: NextRequest) {
       salasSegmentadas[sol.salaId] = target;
     }
 
-    const salasCategorias = Object.values(salasSegmentadas)
-      .filter(s => s.total > 0)
-      .map(s => s.codigo);
+    const conDatos = Object.values(salasSegmentadas).filter((s) => s.total > 0);
 
-    const seriesMasculino = Object.values(salasSegmentadas)
-      .filter(s => s.total > 0)
-      .map(s => s.masculino);
-
-    const seriesFemenino = Object.values(salasSegmentadas)
-      .filter(s => s.total > 0)
-      .map(s => s.femenino);
-
-    const seriesOtro = Object.values(salasSegmentadas)
-      .filter(s => s.total > 0)
-      .map(s => s.otro);
-
-    // SegmentaciÃ³n por usuario individual
+    // Segmentación por usuario individual
     const userAggregates: {
       [uid: string]: {
         id: string;
@@ -165,14 +162,20 @@ export async function GET(request: NextRequest) {
       userAggregates[sol.userId].totalSolicitudes += 1;
       userAggregates[sol.userId].salasUtilizadas.add(sol.salaNombre);
 
-      const diffDays = Math.max(1, Math.round((new Date(sol.fechaFin).getTime() - new Date(sol.fechaInicio).getTime()) / (1000 * 60 * 60 * 24)) || 1);
-      userAggregates[sol.userId].horas += (diffDays * 4);
+      const diffDays = Math.max(
+        1,
+        Math.round(
+          (new Date(sol.fechaFin).getTime() -
+            new Date(sol.fechaInicio).getTime()) /
+            (1000 * 60 * 60 * 24),
+        ) || 1,
+      );
+      userAggregates[sol.userId].horas += diffDays * 4;
     }
 
-    const usuariosResumen = Object.values(userAggregates).map(u => ({
-      ...u,
-      salasUtilizadas: Array.from(u.salasUtilizadas),
-    })).sort((a, b) => b.totalSolicitudes - a.totalSolicitudes);
+    const usuariosResumen = Object.values(userAggregates)
+      .map((u) => ({ ...u, salasUtilizadas: Array.from(u.salasUtilizadas) }))
+      .sort((a, b) => b.totalSolicitudes - a.totalSolicitudes);
 
     return NextResponse.json({
       success: true,
@@ -185,17 +188,20 @@ export async function GET(request: NextRequest) {
           { name: 'Femenino', y: generoCounts.Femenino, color: '#EC4899' },
           { name: 'Otro / Prefiere no decir', y: generoCounts.Otro, color: '#8B5CF6' },
         ],
-        salasCategorias,
+        salasCategorias: conDatos.map((s) => s.codigo),
         seriesPorGeneroYSala: [
-          { name: 'Masculino', data: seriesMasculino, color: '#3B82F6' },
-          { name: 'Femenino', data: seriesFemenino, color: '#EC4899' },
-          { name: 'Otro', data: seriesOtro, color: '#8B5CF6' },
+          { name: 'Masculino', data: conDatos.map((s) => s.masculino), color: '#3B82F6' },
+          { name: 'Femenino', data: conDatos.map((s) => s.femenino), color: '#EC4899' },
+          { name: 'Otro', data: conDatos.map((s) => s.otro), color: '#8B5CF6' },
         ],
       },
     });
   } catch (error: any) {
     if (error?.digest === 'NEXT_PRERENDER_INTERRUPTED') throw error;
     console.error('Error en reporte segmentado:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

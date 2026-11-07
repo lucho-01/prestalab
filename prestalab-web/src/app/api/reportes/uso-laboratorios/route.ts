@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { Sala, SolicitudPrestamo } from '@/types';
+import { requireStaff } from '@/lib/guards';
 
 export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if ('response' in guard) return guard.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const salaId = searchParams.get('salaId') || 'todas';
@@ -14,8 +18,16 @@ export async function GET(request: NextRequest) {
       adminDb.collection('prestamos').get(),
     ]);
 
+    const labs = guard.user.laboratoriosAsignados || [];
+    const esAdmin = guard.user.rol === 'admin';
+
     let salas: Sala[] = salasSnap.docs.map(d => ({ id: d.id, ...d.data() } as Sala));
     let solicitudes: SolicitudPrestamo[] = solicitudesSnap.docs.map(d => ({ id: d.id, ...d.data() } as SolicitudPrestamo));
+
+    if (!esAdmin) {
+      salas = salas.filter((s) => labs.includes(s.id));
+      solicitudes = solicitudes.filter((s) => labs.includes(s.salaId));
+    }
 
     if (salaId !== 'todas') {
       salas = salas.filter(s => s.id === salaId);
@@ -41,9 +53,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const horasPicoOpciones = ['08:00 - 10:00', '10:00 - 12:00', '14:00 - 16:00', '16:00 - 18:00', '18:00 - 20:00'];
-
-    const reportesSalas = salas.map((sala, index) => {
+    const reportesSalas = salas.map((sala) => {
       const solsDeSala = solicitudes.filter(s => s.salaId === sala.id);
       const totalReservas = solsDeSala.length;
 
@@ -67,7 +77,6 @@ export async function GET(request: NextRequest) {
         totalReservas,
         horasOcupadas,
         tasaOcupacion,
-        horaPico: horasPicoOpciones[index % horasPicoOpciones.length],
       };
     });
 

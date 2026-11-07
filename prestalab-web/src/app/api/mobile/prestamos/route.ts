@@ -82,6 +82,47 @@ export async function POST(request: NextRequest) {
 
     await docRef.set(solicitud);
 
+    // Avisar al responsable del laboratorio (o a los administradores si la
+    // sala no tiene gestor asignado) para que la solicitud aparezca en su
+    // bandeja y en el centro de notificaciones del portal.
+    try {
+      const salaSnap = await adminDb.collection('salas').doc(salaId).get();
+      const gestorId = salaSnap.exists
+        ? (salaSnap.data()?.gestorResponsableId as string | undefined)
+        : undefined;
+
+      let destinatarios: string[] = gestorId ? [gestorId] : [];
+      if (destinatarios.length === 0) {
+        const admins = await adminDb
+          .collection('usuarios')
+          .where('rol', '==', 'admin')
+          .get();
+        destinatarios = admins.docs.map((d) => d.id);
+      }
+
+      if (destinatarios.length > 0) {
+        const batch = adminDb.batch();
+        for (const destino of destinatarios) {
+          batch.set(adminDb.collection('notificaciones').doc(), {
+            userId: destino,
+            tipo: 'solicitud',
+            titulo: 'Nueva solicitud de préstamo',
+            mensaje: `${solicitud.userNombre} solicitó ${
+              solicitud.articuloNombre || 'un espacio'
+            } en ${solicitud.salaNombre}.`,
+            prestamoId: docRef.id,
+            salaNombre: solicitud.salaNombre,
+            leida: false,
+            fecha: ahora,
+          });
+        }
+        await batch.commit();
+      }
+    } catch (notifError) {
+      // La notificación es secundaria: no debe romper la creación.
+      console.warn('[mobile prestamos:notify] Error:', notifError);
+    }
+
     return NextResponse.json(
       { success: true, data: solicitud },
       { status: 201 },

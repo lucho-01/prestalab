@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { requireStaff } from '@/lib/guards';
+import { requireStaff, staffPuedeSala } from '@/lib/guards';
 
 /**
  * Aprobación de una solicitud (sólo gestor/admin).
@@ -28,6 +28,13 @@ export async function POST(
       }
       const sol = solSnap.data() || {};
 
+      if (!staffPuedeSala(guard.user, sol.salaId)) {
+        throw Object.assign(
+          new Error('Esta solicitud no pertenece a tus laboratorios asignados.'),
+          { status: 403 },
+        );
+      }
+
       if (sol.estado === 'activo' || sol.estado === 'aprobado') {
         return { yaAprobada: true, solicitud: sol };
       }
@@ -52,6 +59,12 @@ export async function POST(
         const salaSnap = await tx.get(salaRef);
         if (!salaSnap.exists) {
           throw Object.assign(new Error('La sala de reasignación no existe'), { status: 404 });
+        }
+        if (!staffPuedeSala(guard.user, nuevaSalaId)) {
+          throw Object.assign(
+            new Error('No puedes reasignar a un laboratorio que no supervisas.'),
+            { status: 403 },
+          );
         }
         updates.salaOriginalId = sol.salaId;
         updates.salaOriginalNombre = sol.salaNombre;

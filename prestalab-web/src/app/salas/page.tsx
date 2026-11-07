@@ -43,12 +43,16 @@ export default function SalasPage() {
     try {
       const [resSalas, resUsers] = await Promise.all([
         fetch('/api/salas'),
-        fetch('/api/usuarios?rol=gestor'),
+        activeUser.rol === 'admin'
+          ? fetch('/api/usuarios?rol=gestor')
+          : Promise.resolve(null),
       ]);
       const dataSalas = await resSalas.json();
-      const dataUsers = await resUsers.json();
       if (dataSalas.success) setSalas(dataSalas.data || []);
-      if (dataUsers.success) setGestores(dataUsers.data || []);
+      if (resUsers) {
+        const dataUsers = await resUsers.json();
+        if (dataUsers.success) setGestores(dataUsers.data || []);
+      }
     } catch (err) {
       console.error(err);
     } finally {

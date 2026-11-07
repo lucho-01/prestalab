@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from 'lucide-react';
 import { useActiveRole } from '@/context/RoleContext';
@@ -139,14 +138,7 @@ export default function LoginPage() {
 
           <div className="mt-6 pt-5 text-center" style={{ borderTop: '1px solid var(--border)' }}>
             <p className="text-[14px]" style={{ color: 'var(--text-muted)' }}>
-              ¿No tienes una cuenta?{' '}
-              <Link
-                href="/register"
-                className="font-semibold"
-                style={{ color: 'var(--primary)' }}
-              >
-                Crear cuenta
-              </Link>
+              El acceso al portal lo habilita un administrador.
             </p>
             <p className="mt-3 text-[12px] leading-relaxed" style={{ color: 'var(--text-soft)' }}>
               Los estudiantes usan la app móvil de PrestaLab. Si olvidaste tu contraseña,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { requireStaff } from '@/lib/guards';
+import { requireStaff, staffPuedeSala } from '@/lib/guards';
 
 /** Rechazo de una solicitud con justificación obligatoria (gestor/admin). */
 export async function POST(
@@ -36,6 +36,12 @@ export async function POST(
     }
 
     const sol = solSnap.data() || {};
+    if (!staffPuedeSala(guard.user, sol.salaId)) {
+      return NextResponse.json(
+        { success: false, error: 'Esta solicitud no pertenece a tus laboratorios asignados.' },
+        { status: 403 },
+      );
+    }
     if (sol.estado !== 'pendiente') {
       return NextResponse.json(
         { success: false, error: `La solicitud ya está en estado "${sol.estado}".` },

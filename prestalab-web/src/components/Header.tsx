@@ -1,14 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-  Database,
-  Bell,
-  Check,
-  LogOut,
-  CheckCircle2,
-} from 'lucide-react';
+import { Bell, Check, LogOut } from 'lucide-react';
 import { useActiveRole } from '@/context/RoleContext';
+
+const ROL_LABEL: Record<string, string> = {
+  admin: 'Administrador',
+  gestor: 'Gestor',
+};
 
 /**
  * Barra superior — mismo lenguaje que la app móvil:
@@ -21,9 +20,7 @@ export default function Header({
   title: string;
   subtitle?: string;
 }) {
-  const { activeUser, currentUser, logout } = useActiveRole();
-  const [seeding, setSeeding] = useState(false);
-  const [seedStatus, setSeedStatus] = useState<string | null>(null);
+  const { activeUser, logout } = useActiveRole();
   const [notificaciones, setNotificaciones] = useState<
     Array<{ id: string; titulo: string; mensaje: string; leida: boolean; fecha?: string }>
   >([]);
@@ -34,7 +31,7 @@ export default function Header({
       const res = await fetch('/api/notificaciones');
       const data = await res.json();
       if (data.success) setNotificaciones(data.data || []);
-    } catch (e) {
+    } catch {
       // silencioso: el centro de alertas es secundario
     }
   };
@@ -62,28 +59,6 @@ export default function Header({
     setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })));
   };
 
-  const handleSeed = async () => {
-    if (!confirm('¿Deseas poblar la base de datos con datos demo?')) return;
-    setSeeding(true);
-    setSeedStatus(null);
-    try {
-      const res = await fetch('/api/seed', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setSeedStatus('Datos demo cargados');
-        setTimeout(() => window.location.reload(), 1000);
-      } else {
-        setSeedStatus(`Error: ${data.error}`);
-      }
-    } catch (err) {
-      setSeedStatus('Error de red');
-    } finally {
-      setSeeding(false);
-    }
-  };
-
-  const rolPortal = activeUser.rol === 'admin' || activeUser.rol === 'gestor';
-
   return (
     <header
       className="sticky top-0 z-30 px-6 lg:px-10 py-5 flex items-center justify-between gap-4"
@@ -99,13 +74,6 @@ export default function Header({
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {seedStatus ? (
-          <span className="hidden md:inline-flex items-center gap-1.5 pill pill-green">
-            <CheckCircle2 size={13} />
-            {seedStatus}
-          </span>
-        ) : null}
-
         {/* Notificaciones */}
         <div className="relative">
           <button
@@ -176,14 +144,6 @@ export default function Header({
           )}
         </div>
 
-        {/* Datos demo (solo staff) */}
-        {rolPortal && (
-          <button onClick={handleSeed} disabled={seeding} className="btn-secondary hidden md:inline-flex">
-            <Database size={15} />
-            {seeding ? 'Cargando…' : 'Datos demo'}
-          </button>
-        )}
-
         <div className="hidden sm:flex items-center gap-2.5 pl-2">
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold"
@@ -195,20 +155,18 @@ export default function Header({
             <p className="text-[12px] font-semibold" style={{ color: 'var(--text)' }}>
               {activeUser.nombre}
             </p>
-            <p className="text-[11px] capitalize" style={{ color: 'var(--text-soft)' }}>
-              {activeUser.rol}
+            <p className="text-[11px]" style={{ color: 'var(--text-soft)' }}>
+              {ROL_LABEL[activeUser.rol] || activeUser.rol}
             </p>
           </div>
-          {currentUser && (
-            <button
-              onClick={() => logout()}
-              className="w-9 h-9 rounded-[10px] flex items-center justify-center"
-              style={{ color: 'var(--text-soft)' }}
-              title="Cerrar sesión"
-            >
-              <LogOut size={16} />
-            </button>
-          )}
+          <button
+            onClick={() => logout()}
+            className="w-9 h-9 rounded-[10px] flex items-center justify-center"
+            style={{ color: 'var(--text-soft)' }}
+            title="Cerrar sesión"
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </div>
     </header>

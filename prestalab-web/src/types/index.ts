@@ -104,6 +104,5 @@ export interface ReporteSala {
   horasOcupadas: number;
   tasaOcupacion: number; // Porcentaje
   estadoActual: EstadoSala;
-  horaPico: string;
   articulosDisponibles: number;
 }

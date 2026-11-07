@@ -11,24 +11,29 @@ import {
   Users,
   BarChart3,
   LogOut,
-  ChevronDown,
 } from 'lucide-react';
 import { useActiveRole } from '@/context/RoleContext';
 import Brand from '@/components/Brand';
 
+const ROL_LABEL: Record<string, string> = {
+  admin: 'Administrador',
+  gestor: 'Gestor de laboratorio',
+};
+
 export default function Sidebar() {
   const pathname = usePathname();
-  const { activeUser, setActiveUserKey, activeUserKey, logout, currentUser } =
-    useActiveRole();
+  const { activeUser, logout } = useActiveRole();
 
   const navItems = [
-    { label: 'Inicio', href: '/', icon: LayoutDashboard, allowedRoles: ['admin', 'gestor', 'estudiante', 'docente'] },
-    { label: 'Préstamos', href: '/prestamos', icon: ArrowLeftRight, allowedRoles: ['admin', 'gestor', 'estudiante', 'docente'] },
-    { label: 'Salas', href: '/salas', icon: DoorOpen, allowedRoles: ['admin', 'gestor', 'estudiante', 'docente'] },
-    { label: 'Inventario', href: '/inventario', icon: Boxes, allowedRoles: ['admin', 'gestor', 'estudiante', 'docente'] },
-    { label: 'Usuarios', href: '/usuarios', icon: Users, allowedRoles: ['admin'] },
-    { label: 'Analítica', href: '/analitica', icon: BarChart3, allowedRoles: ['admin', 'gestor'] },
+    { label: 'Inicio', href: '/', icon: LayoutDashboard, roles: ['admin', 'gestor'] },
+    { label: 'Préstamos', href: '/prestamos', icon: ArrowLeftRight, roles: ['admin', 'gestor'] },
+    { label: 'Salas', href: '/salas', icon: DoorOpen, roles: ['admin', 'gestor'] },
+    { label: 'Inventario', href: '/inventario', icon: Boxes, roles: ['admin', 'gestor'] },
+    { label: 'Usuarios', href: '/usuarios', icon: Users, roles: ['admin'] },
+    { label: 'Analítica', href: '/analitica', icon: BarChart3, roles: ['admin', 'gestor'] },
   ];
+
+  const visibles = navItems.filter((item) => item.roles.includes(activeUser.rol));
 
   const handleLogout = async () => {
     if (confirm('¿Deseas cerrar tu sesión en PrestaLab?')) {
@@ -56,24 +61,9 @@ export default function Sidebar() {
         </p>
 
         <div className="space-y-1">
-          {navItems.map((item) => {
-            const allowed = item.allowedRoles.includes(activeUser.rol);
+          {visibles.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
-
-            if (!allowed) {
-              return (
-                <div
-                  key={item.href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-[12px] text-[14px] opacity-40 cursor-not-allowed"
-                  style={{ color: 'var(--text-muted)' }}
-                  title="Acceso restringido para este rol"
-                >
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                </div>
-              );
-            }
 
             return (
               <Link
@@ -102,42 +92,6 @@ export default function Sidebar() {
             );
           })}
         </div>
-
-        {/* Selector de rol (entorno de pruebas) */}
-        {!currentUser && (
-          <div
-            className="mt-6 rounded-[14px] p-3"
-            style={{ background: 'var(--green-soft)', border: '1px solid var(--border)' }}
-          >
-            <p
-              className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-2 flex items-center gap-1.5"
-              style={{ color: 'var(--text-soft)' }}
-            >
-              Vista de rol (demo)
-            </p>
-            <div className="relative">
-              <select
-                value={activeUserKey}
-                onChange={(e) => setActiveUserKey(e.target.value)}
-                className="w-full appearance-none rounded-[10px] bg-white px-2.5 py-2 pr-7 text-[12px] font-medium outline-none"
-                style={{ border: '1px solid var(--border)', color: 'var(--text)' }}
-              >
-                <option value="admin">Administrador</option>
-                <option value="gestorCarlos">Gestor · Redes / Robótica</option>
-                <option value="gestorElena">Gestora · Cómputo / Multiuso</option>
-                <option value="estudiante">Estudiante</option>
-              </select>
-              <ChevronDown
-                size={14}
-                className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: 'var(--text-soft)' }}
-              />
-            </div>
-            <p className="mt-2 text-[11px] leading-snug" style={{ color: 'var(--text-soft)' }}>
-              {activeUser.laboratoriosNombres || 'Permisos según rol'}
-            </p>
-          </div>
-        )}
       </nav>
 
       {/* Usuario */}
@@ -153,8 +107,8 @@ export default function Sidebar() {
             <p className="text-[13px] font-semibold truncate" style={{ color: 'var(--text)' }}>
               {activeUser.nombre}
             </p>
-            <p className="text-[11px] capitalize" style={{ color: 'var(--text-soft)' }}>
-              {activeUser.rol}
+            <p className="text-[11px]" style={{ color: 'var(--text-soft)' }}>
+              {ROL_LABEL[activeUser.rol] || activeUser.rol}
             </p>
           </div>
           <button

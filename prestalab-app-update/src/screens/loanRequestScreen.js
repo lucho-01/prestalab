@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   StyleSheet,
@@ -51,7 +51,7 @@ export default function LoanRequestScreen({ navigation, route }) {
     }
 
     if (!termsAccepted) {
-      setError('Debes aceptar los tÃ©rminos y condiciones');
+      setError('Debes aceptar los términos y condiciones');
       return;
     }
 
@@ -78,13 +78,13 @@ export default function LoanRequestScreen({ navigation, route }) {
         motivo: purpose,
         observaciones: notes,
         cantidad: 1,
-        estado: 'pendiente', // Se tramita para evaluaciÃ³n del Gestor
+        estado: 'pendiente', // Se tramita para evaluación del Gestor
         fueReasignada: false,
       });
 
       Alert.alert(
-        'Â¡Solicitud Tramitada!',
-        `Tu solicitud ha sido enviada en tiempo real al panel del Gestor de ${targetSala?.nombre || 'Laboratorio'}. PodrÃ¡s seguir su estado en tu Historial.`,
+        '¡Solicitud Tramitada!',
+        `Tu solicitud ha sido enviada en tiempo real al panel del Gestor de ${targetSala?.nombre || 'Laboratorio'}. Podrás seguir su estado en tu Historial.`,
         [
           {
             text: 'Ver en Historial',
@@ -118,12 +118,12 @@ export default function LoanRequestScreen({ navigation, route }) {
           />
         </TouchableOpacity>
         <View>
-          <Text style={styles.headerTitle}>Solicitar PrÃ©stamo</Text>
-          <Text style={styles.headerSubtitle}>TrÃ¡mite para evaluaciÃ³n de Gestor</Text>
+          <Text style={styles.headerTitle}>Solicitar Préstamo</Text>
+          <Text style={styles.headerSubtitle}>Trámite para evaluación de Gestor</Text>
         </View>
       </View>
 
-      {/* Vista previa del artÃ­culo si fue seleccionado */}
+      {/* Vista previa del artículo si fue seleccionado */}
       {article && (
         <View style={styles.articlePreview}>
           <View style={styles.articleImage}>
@@ -141,13 +141,13 @@ export default function LoanRequestScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* Selector de Laboratorio / Sala FÃ­sica */}
+      {/* Selector de Laboratorio / Sala Física */}
       <View style={styles.formSection}>
         <Text style={styles.sectionTitle}>
           Laboratorio / Sala de Destino *
         </Text>
         <Text style={styles.sectionHint}>
-          Selecciona la sala acadÃ©mica donde se utilizarÃ¡ el recurso:
+          Selecciona la sala académica donde se utilizará el recurso:
         </Text>
         <ScrollView
           horizontal
@@ -203,9 +203,9 @@ export default function LoanRequestScreen({ navigation, route }) {
         </ScrollView>
       </View>
 
-      {/* Tipo de PrÃ©stamo */}
+      {/* Tipo de Préstamo */}
       <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Tipo de PrÃ©stamo</Text>
+        <Text style={styles.sectionTitle}>Tipo de Préstamo</Text>
         <View style={styles.loanTypeContainer}>
           <TouchableOpacity
             style={[
@@ -269,7 +269,7 @@ export default function LoanRequestScreen({ navigation, route }) {
                 { color: loanType === 'externo' ? '#02210E' : '#3E4941' },
               ]}
             >
-              PrÃ¡ctica de campo
+              Práctica de campo
             </Text>
           </TouchableOpacity>
         </View>
@@ -291,7 +291,7 @@ export default function LoanRequestScreen({ navigation, route }) {
       </View>
 
       <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Fecha de DevoluciÃ³n Estimada *</Text>
+        <Text style={styles.sectionTitle}>Fecha de Devolución Estimada *</Text>
         <TextInput
           mode="outlined"
           placeholder="YYYY-MM-DD (ej: 2026-10-27)"
@@ -306,10 +306,10 @@ export default function LoanRequestScreen({ navigation, route }) {
 
       {/* Motivo */}
       <View style={styles.formSection}>
-        <Text style={styles.sectionTitle}>Motivo AcadÃ©mico / PrÃ¡ctica *</Text>
+        <Text style={styles.sectionTitle}>Motivo Académico / Práctica *</Text>
         <TextInput
           mode="outlined"
-          placeholder="Ej: MediciÃ³n de seÃ±ales para el proyecto final de Telecomunicaciones"
+          placeholder="Ej: Medición de señales para el proyecto final de Telecomunicaciones"
           value={purpose}
           onChangeText={setPurpose}
           style={styles.input}
@@ -324,7 +324,7 @@ export default function LoanRequestScreen({ navigation, route }) {
         <Text style={styles.sectionTitle}>Observaciones / Requerimientos</Text>
         <TextInput
           mode="outlined"
-          placeholder="Ej: Se requiere toma con conexiÃ³n a tierra o cables auxiliares"
+          placeholder="Ej: Se requiere toma con conexión a tierra o cables auxiliares"
           value={notes}
           onChangeText={setNotes}
           multiline
@@ -336,7 +336,7 @@ export default function LoanRequestScreen({ navigation, route }) {
         />
       </View>
 
-      {/* TÃ©rminos y condiciones */}
+      {/* Términos y condiciones */}
       <View style={styles.termsContainer}>
         <Checkbox
           status={termsAccepted ? 'checked' : 'unchecked'}
@@ -344,7 +344,7 @@ export default function LoanRequestScreen({ navigation, route }) {
           color="#256B42"
         />
         <Text style={styles.termsText}>
-          Acepto los tÃ©rminos de uso responsable, custodia del equipo y horarios
+          Acepto los términos de uso responsable, custodia del equipo y horarios
           definidos por el Gestor del laboratorio.
         </Text>
       </View>

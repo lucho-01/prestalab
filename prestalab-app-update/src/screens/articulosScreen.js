@@ -6,10 +6,13 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { subscribeToArticles, subscribeToSalas } from '../services/firestoreService';
+import { sincronizar } from '../sync/syncEngine';
+import { useUser } from '../contexts/userContext';
 import PrimaryButton from '../components/PrimaryButton';
 import { articleIconName } from '../components/articleIcon';
 import { COLORS } from '../theme/palette';
@@ -17,12 +20,28 @@ import { COLORS } from '../theme/palette';
 const BASE_CATEGORIES = ['Todos', 'Herramientas', 'Dispositivos', 'Cables'];
 
 export default function ArticulosScreen({ navigation }) {
+  const { user } = useUser();
   const [articles, setArticles] = useState([]);
   const [salas, setSalas] = useState([]);
   const [filteredArticles, setFilteredArticles] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [selectedSalaId, setSelectedSalaId] = useState('todas');
+  const [refreshing, setRefreshing] = useState(false);
+  const [syncError, setSyncError] = useState('');
+
+  const refrescar = async () => {
+    if (!user?.uid) return;
+    setRefreshing(true);
+    const resultado = await sincronizar(user.uid);
+    setSyncError(resultado.ok ? '' : resultado.error || 'No se pudo sincronizar.');
+    setRefreshing(false);
+  };
+
+  useEffect(() => {
+    refrescar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
 
   useEffect(() => {
     const unsubArticles = subscribeToArticles((articlesData) => {
@@ -149,11 +168,29 @@ export default function ArticulosScreen({ navigation }) {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refrescar}
+            tintColor={COLORS.primary}
+            colors={[COLORS.primary]}
+          />
+        }
       >
         <Text style={styles.title}>Catálogo de Activos</Text>
         <Text style={styles.subtitle}>
           Inventario físico y disponibilidad en tiempo real por laboratorio.
         </Text>
+
+        {syncError ? (
+          <View style={styles.syncError}>
+            <MaterialCommunityIcons name="cloud-off-outline" size={20} color={COLORS.error} />
+            <Text style={styles.syncErrorText}>{syncError}</Text>
+            <TouchableOpacity onPress={refrescar} disabled={refreshing}>
+              <Text style={styles.syncRetry}>{refreshing ? 'Reintentando…' : 'Reintentar'}</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Buscador */}
         <View style={styles.searchContainer}>
@@ -264,8 +301,17 @@ export default function ArticulosScreen({ navigation }) {
               color={COLORS.textSoft}
             />
             <Text style={styles.emptyText}>
-              No se encontraron activos en este laboratorio o categoría
+              {articles.length === 0
+                ? 'Aún no hay activos sincronizados. Desliza hacia abajo para actualizar.'
+                : 'No se encontraron activos en este laboratorio o categoría.'}
             </Text>
+            {articles.length === 0 ? (
+              <TouchableOpacity onPress={refrescar} disabled={refreshing} style={styles.emptyAction}>
+                <Text style={styles.emptyActionText}>
+                  {refreshing ? 'Sincronizando…' : 'Sincronizar ahora'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : (
           filteredArticles.map(renderArticle)
@@ -423,6 +469,42 @@ const styles = StyleSheet.create({
     marginTop: 10,
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+  emptyAction: {
+    marginTop: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+  },
+  emptyActionText: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 13,
+    color: '#FEFFFE',
+  },
+  syncError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F9DEDC',
+    borderWidth: 1,
+    borderColor: '#E8B4AF',
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 12,
+  },
+  syncErrorText: {
+    flex: 1,
+    fontFamily: 'Inter_400Regular',
+    fontSize: 12,
+    color: '#7A1A15',
+  },
+  syncRetry: {
+    fontFamily: 'Inter_600SemiBold',
+    fontSize: 12,
+    color: '#7A1A15',
+    textDecorationLine: 'underline',
   },
   articleCard: {
     backgroundColor: COLORS.surface,

@@ -29,3 +29,25 @@ export async function requireStaff(
   }
   return { user };
 }
+
+/** Guard exclusivo del administrador (gestión de usuarios y configuración). */
+export async function requireAdmin(
+  request: Request,
+): Promise<{ user: SessionUser } | { response: NextResponse }> {
+  const user = await getSessionUser(request);
+  if (!user) return { response: unauthorized() };
+  if (user.rol !== 'admin') {
+    return { response: forbidden('Sólo un administrador puede realizar esta acción.') };
+  }
+  return { user };
+}
+
+/**
+ * Alcance por laboratorio: el admin opera sobre cualquier sala; el gestor
+ * únicamente sobre las que tiene asignadas.
+ */
+export function staffPuedeSala(user: SessionUser, salaId?: string): boolean {
+  if (user.rol === 'admin') return true;
+  if (!salaId) return false;
+  return (user.laboratoriosAsignados || []).includes(salaId);
+}

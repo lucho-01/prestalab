@@ -96,7 +96,60 @@ CREATE TABLE IF NOT EXISTS sync_state (
 );
 `;
 
-const MIGRACIONES = [MIGRACION_1];
+/**
+ * MIGRACION_2 — reconstruye el catálogo y los préstamos.
+ *
+ * Las instalaciones antiguas crearon `articulos`/`prestamos`/`salas` con otro
+ * esquema (por ejemplo `stock_disponible` en vez de `stock`). Como la
+ * MIGRACION_1 usa `CREATE TABLE IF NOT EXISTS`, una base ya instalada nunca
+ * se actualizaba y las escrituras del sync fallaban en silencio.
+ *
+ * Se conservan `sync_outbox` y `sync_state`: las operaciones pendientes se
+ * reenvían al backend en la siguiente sincronización.
+ */
+const MIGRACION_2 = `
+DROP TABLE IF EXISTS prestamos;
+DROP TABLE IF EXISTS articulos;
+DROP TABLE IF EXISTS salas;
+
+CREATE TABLE salas (
+  sala_id TEXT PRIMARY KEY,
+  nombre TEXT, codigo TEXT, edificio TEXT, capacidad INTEGER,
+  tipo TEXT, estado TEXT, gestor_responsable_id TEXT, gestor_nombre TEXT,
+  equipos_count INTEGER, descripcion TEXT,
+  updated_at TEXT, deleted_at TEXT
+);
+
+CREATE TABLE articulos (
+  articulo_id TEXT PRIMARY KEY,
+  nombre TEXT NOT NULL, categoria TEXT, sala_id TEXT, sala_nombre TEXT,
+  stock INTEGER NOT NULL DEFAULT 0, stock_total INTEGER NOT NULL DEFAULT 0,
+  estado TEXT, condicion TEXT, codigo_activo TEXT, descripcion TEXT,
+  fecha_registro TEXT, updated_at TEXT, deleted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_articulos_sala ON articulos(sala_id);
+CREATE INDEX IF NOT EXISTS idx_articulos_categoria ON articulos(categoria);
+
+CREATE TABLE prestamos (
+  loan_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL, user_nombre TEXT, user_email TEXT, user_rol TEXT,
+  user_genero TEXT, tipo_recurso TEXT,
+  articulo_id TEXT, articulo_nombre TEXT,
+  sala_id TEXT, sala_nombre TEXT,
+  sala_original_id TEXT, sala_original_nombre TEXT,
+  fue_reasignada INTEGER NOT NULL DEFAULT 0, motivo_reasignacion TEXT,
+  cantidad INTEGER NOT NULL DEFAULT 1, tipo TEXT, motivo TEXT, observaciones TEXT,
+  estado TEXT NOT NULL DEFAULT 'pendiente',
+  fecha_solicitud TEXT, fecha_inicio TEXT, fecha_fin TEXT,
+  fecha_aprobacion TEXT, fecha_devolucion TEXT,
+  gestor_id TEXT, gestor_nombre TEXT, motivo_rechazo TEXT,
+  dirty INTEGER NOT NULL DEFAULT 0, updated_at TEXT, deleted_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_prestamos_user ON prestamos(user_id, fecha_solicitud DESC);
+CREATE INDEX IF NOT EXISTS idx_prestamos_estado ON prestamos(estado, fecha_fin);
+`;
+
+const MIGRACIONES = [MIGRACION_1, MIGRACION_2];
 
 export function initDb() {
   const db = getDb();

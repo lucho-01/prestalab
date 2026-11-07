@@ -5,7 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server';
  * (La verificación criptográfica del token se hace en cada API con
  * verifySessionCookie; aquí sólo se evita renderizar el panel sin sesión.)
  */
-const PUBLIC = ['/login', '/register'];
+const PUBLIC = ['/login'];
 const PUBLIC_PREFIX = [
   '/api/auth',
   '/api/mobile',

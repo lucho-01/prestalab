@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { Articulo, Sala } from '@/types';
+import { requireStaff } from '@/lib/guards';
 
 export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if ('response' in guard) return guard.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const salaId = searchParams.get('salaId') || 'todas';
@@ -16,15 +20,23 @@ export async function GET(request: NextRequest) {
       adminDb.collection('salas').get(),
     ]);
 
+    const labs = guard.user.laboratoriosAsignados || [];
+    const esAdmin = guard.user.rol === 'admin';
+
     let articulos: Articulo[] = articulosSnap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     } as Articulo));
 
-    const salas: Sala[] = salasSnap.docs.map(doc => ({
+    let salas: Sala[] = salasSnap.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
     } as Sala));
+
+    if (!esAdmin) {
+      articulos = articulos.filter((a) => labs.includes(a.salaId));
+      salas = salas.filter((s) => labs.includes(s.id));
+    }
 
     // Filtrar por sala
     if (salaId !== 'todas') {

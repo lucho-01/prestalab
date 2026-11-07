@@ -1,37 +1,59 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { ReporteUsuario, Usuario, SolicitudPrestamo } from '@/types';
+import { requireStaff } from '@/lib/guards';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if ('response' in guard) return guard.response;
+
   try {
     const [usuariosSnap, solicitudesSnap] = await Promise.all([
       adminDb.collection('usuarios').get(),
       adminDb.collection('prestamos').get(),
     ]);
 
-    const usuarios: Usuario[] = usuariosSnap.docs.map(d => ({ id: d.id, ...d.data() } as Usuario));
-    const solicitudes: SolicitudPrestamo[] = solicitudesSnap.docs.map(d => ({ id: d.id, ...d.data() } as SolicitudPrestamo));
+    const usuarios: Usuario[] = usuariosSnap.docs.map(
+      (d) => ({ id: d.id, ...d.data() }) as Usuario,
+    );
+    let solicitudes: SolicitudPrestamo[] = solicitudesSnap.docs.map(
+      (d) => ({ id: d.id, ...d.data() }) as SolicitudPrestamo,
+    );
 
-    const estudiantesYDocentes = usuarios.filter(u => u.rol === 'estudiante' || u.rol === 'docente');
+    if (guard.user.rol !== 'admin') {
+      const labs = guard.user.laboratoriosAsignados || [];
+      solicitudes = solicitudes.filter((s) => labs.includes(s.salaId));
+    }
 
-    const reportes: ReporteUsuario[] = estudiantesYDocentes.map(user => {
-      const userSols = solicitudes.filter(s => s.userId === user.id);
+    // Los solicitantes de la app móvil son estudiantes y docentes.
+    const solicitantes = usuarios.filter(
+      (u) => u.rol === 'estudiante' || u.rol === 'docente',
+    );
+    const idsSolicitantes = new Set(solicitantes.map((u) => u.id));
+
+    // Sólo se reportan usuarios que realmente tienen préstamos.
+    const conActividad = solicitantes.filter((u) =>
+      solicitudes.some((s) => s.userId === u.id),
+    );
+
+    const reportes: ReporteUsuario[] = conActividad.map((user) => {
+      const userSols = solicitudes.filter((s) => s.userId === user.id);
       const totalPrestamos = userSols.length;
-      const prestamosActivos = userSols.filter(s => s.estado === 'activo').length;
-      const prestamosDevueltos = userSols.filter(s => s.estado === 'devuelto').length;
-      const prestamosRechazados = userSols.filter(s => s.estado === 'rechazado').length;
+      const prestamosActivos = userSols.filter((s) => s.estado === 'activo').length;
+      const prestamosDevueltos = userSols.filter((s) => s.estado === 'devuelto').length;
+      const prestamosRechazados = userSols.filter((s) => s.estado === 'rechazado').length;
 
-      // Calcular estimaciÃ³n de horas reservadas (suponiendo 3 horas por reserva estÃ¡ndar o diferencia de fechas)
+      // Estimación de horas reservadas: 4 h por día de vigencia.
       const horasReservadas = userSols.reduce((sum, s) => {
         if (!s.fechaInicio || !s.fechaFin) return sum + 3;
-        const diffMs = new Date(s.fechaFin).getTime() - new Date(s.fechaInicio).getTime();
+        const diffMs =
+          new Date(s.fechaFin).getTime() - new Date(s.fechaInicio).getTime();
         const diffDays = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)));
-        return sum + (diffDays * 4); // 4 horas promedio de jornada de lab por dÃ­a
+        return sum + diffDays * 4;
       }, 0);
 
-      const tasaCumplimiento = totalPrestamos > 0
-        ? Math.round((prestamosDevueltos / (totalPrestamos - prestamosRechazados || 1)) * 100)
-        : 100;
+      const base = totalPrestamos - prestamosRechazados;
+      const tasaCumplimiento = base > 0 ? Math.round((prestamosDevueltos / base) * 100) : 0;
 
       return {
         userId: user.id,
@@ -47,20 +69,33 @@ export async function GET() {
       };
     });
 
-    // EstadÃ­sticas globales agregadas
+    // Préstamos cuyo solicitante ya no existe como usuario real se omiten.
+    const huerfanos = solicitudes.filter((s) => !idsSolicitantes.has(s.userId)).length;
+
     const resumen = {
-      totalEstudiantes: estudiantesYDocentes.filter(u => u.rol === 'estudiante').length,
-      totalDocentes: estudiantesYDocentes.filter(u => u.rol === 'docente').length,
-      horasEstudiantes: reportes.filter(r => r.rol === 'estudiante').reduce((a, b) => a + b.horasReservadas, 0),
-      horasDocentes: reportes.filter(r => r.rol === 'docente').reduce((a, b) => a + b.horasReservadas, 0),
-      prestamosEstudiantes: reportes.filter(r => r.rol === 'estudiante').reduce((a, b) => a + b.totalPrestamos, 0),
-      prestamosDocentes: reportes.filter(r => r.rol === 'docente').reduce((a, b) => a + b.totalPrestamos, 0),
+      totalEstudiantes: solicitantes.filter((u) => u.rol === 'estudiante').length,
+      totalDocentes: solicitantes.filter((u) => u.rol === 'docente').length,
+      horasEstudiantes: reportes
+        .filter((r) => r.rol === 'estudiante')
+        .reduce((a, b) => a + b.horasReservadas, 0),
+      horasDocentes: reportes
+        .filter((r) => r.rol === 'docente')
+        .reduce((a, b) => a + b.horasReservadas, 0),
+      prestamosEstudiantes: reportes
+        .filter((r) => r.rol === 'estudiante')
+        .reduce((a, b) => a + b.totalPrestamos, 0),
+      prestamosDocentes: reportes
+        .filter((r) => r.rol === 'docente')
+        .reduce((a, b) => a + b.totalPrestamos, 0),
+      prestamosSinUsuario: huerfanos,
     };
 
     return NextResponse.json({ success: true, data: reportes, resumen });
   } catch (error: any) {
     console.error('Error in user analytics report:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
-

@@ -733,8 +733,8 @@ export default function AnaliticaPage() {
                           <span className="font-extrabold text-[var(--primary-dark)]">{sala.horasOcupadas} h</span>
                         </div>
                         <div className="bg-white p-2 rounded-lg border border-[var(--border)]">
-                          <span className="text-[10px] text-[var(--text-soft)] block font-bold">HORA PICO</span>
-                          <span className="font-bold text-indigo-700">{sala.horaPico}</span>
+                          <span className="text-[10px] text-[var(--text-soft)] block font-bold">DISPONIBLES</span>
+                          <span className="font-bold text-indigo-700">{sala.articulosDisponibles} ud</span>
                         </div>
                       </div>
 

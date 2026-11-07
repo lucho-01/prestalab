@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { Articulo } from '@/types';
+import { forbidden, requireStaff, staffPuedeSala } from '@/lib/guards';
 
+/** Inventario: admin ve todo; gestor solo los activos de sus laboratorios. */
 export async function GET(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if ('response' in guard) return guard.response;
+
   try {
     const { searchParams } = new URL(request.url);
     const salaId = searchParams.get('salaId');
@@ -18,19 +23,34 @@ export async function GET(request: NextRequest) {
     }
 
     const snapshot = await query.get();
-    const articulos: Articulo[] = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-    } as Articulo));
+    let articulos: Articulo[] = snapshot.docs.map(
+      (doc) =>
+        ({
+          id: doc.id,
+          ...doc.data(),
+        }) as Articulo,
+    );
+
+    if (guard.user.rol !== 'admin') {
+      const labs = guard.user.laboratoriosAsignados || [];
+      articulos = articulos.filter((a) => labs.includes(a.salaId));
+    }
 
     return NextResponse.json({ success: true, data: articulos });
   } catch (error: any) {
     console.error('Error fetching articulos:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }
 
+/** Alta de inventario: staff, limitado a sus laboratorios si es gestor. */
 export async function POST(request: NextRequest) {
+  const guard = await requireStaff(request);
+  if ('response' in guard) return guard.response;
+
   try {
     const body = await request.json();
     const {
@@ -50,8 +70,12 @@ export async function POST(request: NextRequest) {
     if (!nombre || !categoria || !salaId || stock === undefined) {
       return NextResponse.json(
         { success: false, error: 'Nombre, categoría, salaId y stock son obligatorios' },
-        { status: 400 }
+        { status: 400 },
       );
+    }
+
+    if (!staffPuedeSala(guard.user, salaId)) {
+      return forbidden('No puedes agregar inventario a un laboratorio que no supervisas.');
     }
 
     // Resolver nombre de la sala si no viene
@@ -84,6 +108,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: nuevoArticulo }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating articulo:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 },
+    );
   }
 }

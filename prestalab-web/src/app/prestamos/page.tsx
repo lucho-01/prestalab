@@ -7,26 +7,25 @@ import {
   Shuffle,
   Clock,
   RotateCcw,
-  Plus,
   Search,
-  Filter,
   AlertCircle,
   CheckCircle2,
-  Calendar,
-  User,
-  DoorOpen,
-  Boxes,
-  HelpCircle,
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { useActiveRole } from '@/context/RoleContext';
-import { SolicitudPrestamo, Sala, Articulo } from '@/types';
+import { SolicitudPrestamo, Sala } from '@/types';
+
+const fmtFecha = (valor?: string) => {
+  if (!valor) return '—';
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return valor;
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+};
 
 export default function PrestamosPage() {
   const { activeUser } = useActiveRole();
   const [solicitudes, setSolicitudes] = useState<SolicitudPrestamo[]>([]);
   const [salas, setSalas] = useState<Sala[]>([]);
-  const [articulos, setArticulos] = useState<Articulo[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filtros
@@ -36,7 +35,7 @@ export default function PrestamosPage() {
 
   // Modales
   const [selectedSol, setSelectedSol] = useState<SolicitudPrestamo | null>(null);
-  const [modalType, setModalType] = useState<'aprobar' | 'rechazar' | 'reasignar' | 'nueva' | null>(null);
+  const [modalType, setModalType] = useState<'aprobar' | 'rechazar' | 'reasignar' | null>(null);
 
   // Form states para acciones
   const [motivoRechazo, setMotivoRechazo] = useState('');
@@ -45,37 +44,19 @@ export default function PrestamosPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Form nueva solicitud
-  const [newSolData, setNewSolData] = useState({
-    userNombre: activeUser.nombre,
-    userEmail: activeUser.email,
-    userRol: 'estudiante',
-    tipoRecurso: 'mixto',
-    articuloId: '',
-    salaId: '',
-    cantidad: 1,
-    fechaInicio: '',
-    fechaFin: '',
-    motivo: '',
-    observaciones: '',
-  });
-
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [resSols, resSalas, resArts] = await Promise.all([
+      const [resSols, resSalas] = await Promise.all([
         fetch('/api/solicitudes'),
         fetch('/api/salas'),
-        fetch('/api/articulos'),
       ]);
 
       const dataSols = await resSols.json();
       const dataSalas = await resSalas.json();
-      const dataArts = await resArts.json();
 
       if (dataSols.success) setSolicitudes(dataSols.data || []);
       if (dataSalas.success) setSalas(dataSalas.data || []);
-      if (dataArts.success) setArticulos(dataArts.data || []);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -89,12 +70,10 @@ export default function PrestamosPage() {
 
   // Filtrado de solicitudes
   const filteredSolicitudes = solicitudes.filter((s) => {
-    // Control de rol: Gestor solo ve salas que supervisa (a menos que sea Admin)
+    // El gestor solo ve las salas que supervisa.
     if (activeUser.rol === 'gestor') {
       const supervisadas = activeUser.laboratoriosAsignados || [];
       if (!supervisadas.includes(s.salaId)) return false;
-    } else if (activeUser.rol === 'estudiante' || activeUser.rol === 'docente') {
-      if (s.userId !== activeUser.id) return false;
     }
 
     if (filterEstado !== 'todos' && s.estado !== filterEstado) return false;
@@ -231,68 +210,40 @@ export default function PrestamosPage() {
   };
 
   const handleDevolver = async (solId: string) => {
-    if (!confirm('¿Confirmas el retorno y devolución formal de este préstamo al inventario del laboratorio?')) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/solicitudes/${solId}/aprobar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          estado: 'devuelto',
-          fechaDevolucion: new Date().toISOString(),
-        }),
-      });
-      fetchData();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleCrearSolicitud = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSolData.salaId || !newSolData.motivo) {
-      alert('Selecciona una sala e indica el motivo académico.');
+    if (
+      !confirm(
+        '¿Confirmas el retorno y devolución formal de este préstamo al inventario del laboratorio?',
+      )
+    ) {
       return;
     }
 
     setActionLoading(true);
+    setFeedback(null);
     try {
-      const salaSeleccionada = salas.find((s) => s.id === newSolData.salaId);
-      const articuloSeleccionado = articulos.find((a) => a.id === newSolData.articuloId);
-
-      const res = await fetch('/api/solicitudes', {
+      const res = await fetch(`/api/solicitudes/${solId}/devolver`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: activeUser.id,
-          userNombre: activeUser.nombre,
-          userEmail: activeUser.email,
-          userRol: activeUser.rol === 'admin' || activeUser.rol === 'gestor' ? 'docente' : activeUser.rol,
-          tipoRecurso: articuloSeleccionado ? 'mixto' : 'sala',
-          articuloId: articuloSeleccionado?.id,
-          articuloNombre: articuloSeleccionado?.nombre,
-          salaId: newSolData.salaId,
-          salaNombre: salaSeleccionada?.nombre,
-          cantidad: newSolData.cantidad,
-          fechaInicio: newSolData.fechaInicio,
-          fechaFin: newSolData.fechaFin,
-          motivo: newSolData.motivo,
-          observaciones: newSolData.observaciones,
-        }),
       });
-
       const data = await res.json();
+
       if (data.success) {
-        setFeedback({ type: 'success', message: 'Solicitud enviada exitosamente a revisión del Gestor.' });
-        setModalType(null);
+        setFeedback({
+          type: 'success',
+          message: 'Devolución registrada. El stock volvió al inventario del laboratorio.',
+        });
         fetchData();
       } else {
-        alert(data.error);
+        setFeedback({
+          type: 'error',
+          message: data.error || 'No se pudo registrar la devolución.',
+        });
       }
     } catch (err: any) {
-      alert(err.message);
+      setFeedback({
+        type: 'error',
+        message: err.message || 'No se pudo registrar la devolución.',
+      });
     } finally {
       setActionLoading(false);
     }
@@ -375,25 +326,6 @@ export default function PrestamosPage() {
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-            <button
-              onClick={() => {
-                const today = new Date().toISOString().split('T')[0];
-                const twoDaysLater = new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0];
-                setNewSolData({
-                  ...newSolData,
-                  salaId: salas[0]?.id || '',
-                  fechaInicio: today,
-                  fechaFin: twoDaysLater,
-                });
-                setModalType('nueva');
-              }}
-              className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold rounded-[14px] bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white  transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Nueva Solicitud
-            </button>
           </div>
         </div>
 
@@ -482,8 +414,8 @@ export default function PrestamosPage() {
 
                       {/* Fechas */}
                       <td className="p-4 whitespace-nowrap">
-                        <div className="text-[var(--text)] font-semibold">{sol.fechaInicio}</div>
-                        <div className="text-[var(--text-soft)] text-[11px]">hasta {sol.fechaFin}</div>
+                        <div className="text-[var(--text)] font-semibold">{fmtFecha(sol.fechaInicio)}</div>
+                        <div className="text-[var(--text-soft)] text-[11px]">hasta {fmtFecha(sol.fechaFin)}</div>
                       </td>
 
                       {/* Estado */}
@@ -607,7 +539,7 @@ export default function PrestamosPage() {
                   <strong>Sala:</strong> {selectedSol.salaNombre}
                 </p>
                 <p>
-                  <strong>Vigencia:</strong> {selectedSol.fechaInicio} al {selectedSol.fechaFin}
+                  <strong>Vigencia:</strong> {fmtFecha(selectedSol.fechaInicio)} al {fmtFecha(selectedSol.fechaFin)}
                 </p>
               </div>
 
@@ -770,131 +702,6 @@ export default function PrestamosPage() {
                   {actionLoading ? 'Reasignando...' : 'Guardar y Notificar Cambio'}
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* MODAL: NUEVA SOLICITUD */}
-        {modalType === 'nueva' && (
-          <div className="fixed inset-0 bg-[rgba(24,28,26,0.45)]  flex items-center justify-center p-4 z-50 animate-fadeIn">
-            <div className="bg-white rounded-[18px] max-w-lg w-full p-6  border border-[var(--border)] space-y-4">
-              <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
-                <h3 className="font-bold text-[var(--text)] text-base flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-[var(--primary)]" />
-                  Tramitar Solicitud de Préstamo
-                </h3>
-                <button
-                  onClick={() => setModalType(null)}
-                  className="text-[var(--text-soft)] hover:text-[var(--text-muted)]"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleCrearSolicitud} className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[var(--text-muted)] mb-1">
-                      Sala o Laboratorio *
-                    </label>
-                    <select
-                      value={newSolData.salaId}
-                      onChange={(e) => setNewSolData({ ...newSolData, salaId: e.target.value })}
-                      className="w-full text-[13px] p-2.5 border border-[var(--border)] rounded-[14px] bg-white"
-                      required
-                    >
-                      {salas.map((sala) => (
-                        <option key={sala.id} value={sala.id}>
-                          {sala.codigo} - {sala.nombre}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[var(--text-muted)] mb-1">
-                      Artículo o Equipo Específico
-                    </label>
-                    <select
-                      value={newSolData.articuloId}
-                      onChange={(e) =>
-                        setNewSolData({ ...newSolData, articuloId: e.target.value })
-                      }
-                      className="w-full text-[13px] p-2.5 border border-[var(--border)] rounded-[14px] bg-white"
-                    >
-                      <option value="">Solo Reserva de Sala (Sin artículo)</option>
-                      {articulos.map((art) => (
-                        <option key={art.id} value={art.id}>
-                          {art.nombre} ({art.stock} disp.)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[var(--text-muted)] mb-1">
-                      Fecha Inicio *
-                    </label>
-                    <input
-                      type="date"
-                      value={newSolData.fechaInicio}
-                      onChange={(e) =>
-                        setNewSolData({ ...newSolData, fechaInicio: e.target.value })
-                      }
-                      className="w-full text-[13px] p-2 border border-[var(--border)] rounded-[14px]"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[13px] font-semibold text-[var(--text-muted)] mb-1">
-                      Fecha Fin *
-                    </label>
-                    <input
-                      type="date"
-                      value={newSolData.fechaFin}
-                      onChange={(e) =>
-                        setNewSolData({ ...newSolData, fechaFin: e.target.value })
-                      }
-                      className="w-full text-[13px] p-2 border border-[var(--border)] rounded-[14px]"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[13px] font-semibold text-[var(--text-muted)] mb-1">
-                    Motivo Académico / Práctica *
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={newSolData.motivo}
-                    onChange={(e) => setNewSolData({ ...newSolData, motivo: e.target.value })}
-                    placeholder="Describe el propósito del préstamo o práctica"
-                    className="w-full text-[13px] p-2.5 border border-[var(--border)] rounded-[14px]"
-                    required
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border)]">
-                  <button
-                    type="button"
-                    onClick={() => setModalType(null)}
-                    className="px-4 py-2 text-[13px] font-semibold rounded-[14px] text-[var(--text-muted)] hover:bg-[var(--green-soft)]"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={actionLoading}
-                    className="px-4 py-2 text-[13px] font-semibold rounded-[14px] bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white "
-                  >
-                    {actionLoading ? 'Registrando...' : 'Enviar Solicitud'}
-                  </button>
-                </div>
-              </form>
             </div>
           </div>
         )}

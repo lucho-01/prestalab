@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { requireStaff } from '@/lib/guards';
+import { requireStaff, staffPuedeSala } from '@/lib/guards';
 
 /** Reasignación de sala con motivo obligatorio (gestor/admin). */
 export async function POST(
@@ -36,6 +36,19 @@ export async function POST(
       );
     }
     const sol = solSnap.data() || {};
+
+    if (!staffPuedeSala(guard.user, sol.salaId)) {
+      return NextResponse.json(
+        { success: false, error: 'Esta solicitud no pertenece a tus laboratorios asignados.' },
+        { status: 403 },
+      );
+    }
+    if (!staffPuedeSala(guard.user, nuevaSalaId)) {
+      return NextResponse.json(
+        { success: false, error: 'No puedes reasignar a un laboratorio que no supervisas.' },
+        { status: 403 },
+      );
+    }
 
     const salaSnap = await adminDb.collection('salas').doc(nuevaSalaId).get();
     if (!salaSnap.exists) {

@@ -5,21 +5,26 @@ import Link from 'next/link';
 import {
   Clock,
   CheckCircle,
-  AlertTriangle,
   DoorOpen,
   Boxes,
-  Users,
   ArrowRight,
   ArrowUpRight,
   RefreshCw,
-  GitPullRequest,
   Check,
-  X,
-  ExternalLink,
+  Users,
+  BarChart3,
+  ShieldCheck,
 } from 'lucide-react';
 import Header from '@/components/Header';
 import { useActiveRole } from '@/context/RoleContext';
 import { SolicitudPrestamo, Sala } from '@/types';
+
+const fmtFecha = (valor?: string) => {
+  if (!valor) return '—';
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return valor;
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+};
 
 export default function DashboardPage() {
   const { activeUser } = useActiveRole();
@@ -53,29 +58,32 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchData();
-  }, [activeUser.rol]);
+  }, []);
 
-  // Filtrar pendientes si el rol es gestor
+  // El administrador ve todo; el gestor, únicamente sus laboratorios.
   const pendientesFiltradas = solicitudes.filter((s) => {
     if (activeUser.rol === 'admin') return true;
-    if (activeUser.rol === 'gestor') {
-      return activeUser.laboratoriosAsignados?.includes(s.salaId);
-    }
-    return s.userId === activeUser.id;
+    return (activeUser.laboratoriosAsignados || []).includes(s.salaId);
   });
+
+  const salasVisibles =
+    activeUser.rol === 'admin'
+      ? salas
+      : salas.filter((s) =>
+          (activeUser.laboratoriosAsignados || []).includes(s.id),
+        );
 
   return (
     <>
       <Header
-        title="Panel de Control General"
-        subtitle={`Bienvenido de nuevo, ${activeUser.nombre}. Visión operativa centralizada de PrestaLab.`}
+        title="Panel de Control"
+        subtitle={`Bienvenido, ${activeUser.nombre}. Resumen operativo de PrestaLab.`}
       />
 
       <main className="p-8 space-y-8 max-w-7xl mx-auto w-full">
-        {/* KPI Cards Grid */}
+        {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Pendientes */}
-          <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]  hover: transition-shadow">
+          <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-soft)] uppercase tracking-wider">
                 Solicitudes Pendientes
@@ -93,12 +101,11 @@ export default function DashboardPage() {
               </span>
             </div>
             <p className="text-[13px] text-[var(--text-soft)] mt-2">
-              Requieren decisión del Gestor de Laboratorio
+              Requieren decisión del gestor de laboratorio
             </p>
           </div>
 
-          {/* Card 2: Préstamos Activos */}
-          <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]  hover: transition-shadow">
+          <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-soft)] uppercase tracking-wider">
                 Préstamos Activos
@@ -116,12 +123,11 @@ export default function DashboardPage() {
               </span>
             </div>
             <p className="text-[13px] text-[var(--text-soft)] mt-2">
-              {stats?.reasignadas ?? 0} préstamos con cambio de sala
+              {stats?.devueltos ?? 0} devueltos · {stats?.rechazados ?? 0} rechazados
             </p>
           </div>
 
-          {/* Card 3: Salas y Laboratorios */}
-          <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]  hover: transition-shadow">
+          <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-soft)] uppercase tracking-wider">
                 Salas y Laboratorios
@@ -139,12 +145,11 @@ export default function DashboardPage() {
               </span>
             </div>
             <p className="text-[13px] text-[var(--text-soft)] mt-2">
-              {stats?.salasMantenimiento ?? 0} en mantenimiento técnico
+              {stats?.salasMantenimiento ?? 0} en mantenimiento
             </p>
           </div>
 
-          {/* Card 4: Inventario Total */}
-          <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]  hover: transition-shadow">
+          <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-[var(--text-soft)] uppercase tracking-wider">
                 Activos e Inventario
@@ -162,17 +167,17 @@ export default function DashboardPage() {
               </span>
             </div>
             <p className="text-[13px] text-[var(--text-soft)] mt-2">
-              {stats?.articulosEnPrestamo ?? 0} prestados a usuarios
+              {stats?.articulosEnPrestamo ?? 0} prestadas actualmente
             </p>
           </div>
         </div>
 
-        {/* Section: Solicitudes Pendientes de Atención Inmediata */}
-        <div className="bg-white rounded-[18px] border border-[var(--border)]  overflow-hidden">
+        {/* Bandeja de pendientes */}
+        <div className="bg-white rounded-[18px] border border-[var(--border)] overflow-hidden">
           <div className="p-6 border-b border-[var(--border)] flex items-center justify-between bg-[var(--background)]/50">
             <div>
               <h3 className="text-lg font-bold text-[var(--text)] flex items-center gap-2">
-                <span>Bandeja de Decisiones del Gestor</span>
+                <span>Bandeja de decisiones</span>
                 {pendientesFiltradas.length > 0 && (
                   <span className="text-[13px] font-semibold bg-[var(--warning-text)] text-white px-2 py-0.5 rounded-full">
                     {pendientesFiltradas.length} pendientes
@@ -180,7 +185,7 @@ export default function DashboardPage() {
                 )}
               </h3>
               <p className="text-[13px] text-[var(--text-soft)] mt-0.5">
-                Evalúa, aprueba, rechaza con justificación o reasigna salas de laboratorio.
+                Aprueba, rechaza con justificación o reasigna la sala de una solicitud.
               </p>
             </div>
 
@@ -188,13 +193,13 @@ export default function DashboardPage() {
               href="/prestamos"
               className="text-[13px] font-semibold text-[var(--primary)] hover:text-[var(--primary-dark)] flex items-center gap-1.5 transition-colors"
             >
-              Ver todas en Préstamos <ArrowRight className="w-3.5 h-3.5" />
+              Ver todas <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
           {loading ? (
             <div className="p-8 text-center text-sm text-[var(--text-soft)] flex items-center justify-center gap-2">
-              <RefreshCw className="w-4 h-4 animate-spin text-[var(--primary)]" /> Cargando solicitudes...
+              <RefreshCw className="w-4 h-4 animate-spin text-[var(--primary)]" /> Cargando solicitudes…
             </div>
           ) : pendientesFiltradas.length === 0 ? (
             <div className="p-12 text-center">
@@ -202,10 +207,13 @@ export default function DashboardPage() {
                 <Check className="w-6 h-6" />
               </div>
               <h4 className="font-semibold text-[var(--text)] text-sm">
-                No hay solicitudes pendientes en este momento
+                No hay solicitudes pendientes
               </h4>
               <p className="text-[13px] text-[var(--text-soft)] mt-1 max-w-sm mx-auto">
-                Todas las solicitudes de tus laboratorios asignados han sido evaluadas y resueltas.
+                {activeUser.rol === 'gestor' &&
+                (activeUser.laboratoriosAsignados || []).length === 0
+                  ? 'Aún no tienes laboratorios asignados. Un administrador puede asignártelos desde Salas.'
+                  : 'Todas las solicitudes de tus laboratorios han sido evaluadas.'}
               </p>
             </div>
           ) : (
@@ -216,7 +224,7 @@ export default function DashboardPage() {
                   className="p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-[var(--background)]/70 transition-colors"
                 >
                   <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[13px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 capitalize">
                         {sol.userRol}
                       </span>
@@ -232,45 +240,45 @@ export default function DashboardPage() {
                     <div className="text-[13px] text-[var(--text-muted)] flex flex-wrap items-center gap-x-4 gap-y-1 font-medium">
                       <span>
                         <strong className="text-[var(--text)]">Recurso:</strong>{' '}
-                        {sol.articuloNombre || 'Reserva de Sala'} ({sol.cantidad} ud)
+                        {sol.articuloNombre || 'Reserva de sala'} ({sol.cantidad} ud)
                       </span>
                       <span>
-                        <strong className="text-[var(--text)]">Sala solicitada:</strong>{' '}
+                        <strong className="text-[var(--text)]">Sala:</strong>{' '}
                         <span className="text-[var(--primary-dark)] bg-[var(--green-soft)] px-2 py-0.5 rounded font-semibold border border-[var(--border)]/60">
                           {sol.salaNombre}
                         </span>
                       </span>
                       <span>
-                        <strong className="text-[var(--text)]">Fechas:</strong>{' '}
-                        {sol.fechaInicio} al {sol.fechaFin}
+                        <strong className="text-[var(--text)]">Vigencia:</strong>{' '}
+                        {fmtFecha(sol.fechaInicio)} al {fmtFecha(sol.fechaFin)}
                       </span>
                     </div>
 
                     <p className="text-[13px] text-[var(--text-soft)] italic bg-[var(--background)] p-2 rounded-lg border border-[var(--border)]/50">
-                      "{sol.motivo}"
+                      “{sol.motivo}”
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Link
-                      href="/prestamos"
-                      className="px-4 py-2 rounded-[14px] text-[13px] font-semibold bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white  transition-colors flex items-center gap-1.5"
-                    >
-                      Evaluar en Bandeja <ArrowUpRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
+                  <Link
+                    href="/prestamos"
+                    className="px-4 py-2 rounded-[14px] text-[13px] font-semibold bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white transition-colors flex items-center gap-1.5 shrink-0"
+                  >
+                    Evaluar <ArrowUpRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Section 2: Estado de Laboratorios en Tiempo Real */}
+        {/* Salas + accesos */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-white rounded-[18px] border border-[var(--border)]  p-6">
+          <div className="lg:col-span-2 bg-white rounded-[18px] border border-[var(--border)] p-6">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="font-bold text-[var(--text)] text-base">Salas y Espacios Académicos</h3>
+                <h3 className="font-bold text-[var(--text)] text-base">
+                  {activeUser.rol === 'admin' ? 'Salas y espacios académicos' : 'Tus laboratorios asignados'}
+                </h3>
                 <p className="text-[13px] text-[var(--text-soft)]">Supervisión física y capacidad actual</p>
               </div>
               <Link href="/salas" className="text-[13px] text-[var(--primary)] font-semibold hover:underline">
@@ -278,84 +286,107 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {salas.map((sala) => (
-                <div
-                  key={sala.id}
-                  className="p-4 rounded-[14px] border border-[var(--border)] hover:border-[var(--border)] transition-all bg-[var(--background)]/50"
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <span className="text-[11px] font-bold text-[var(--primary-dark)] bg-[var(--green-soft-strong)]/70 px-2 py-0.5 rounded border border-[var(--border)]">
-                        {sala.codigo}
+            {salasVisibles.length === 0 ? (
+              <p className="text-[13px] text-[var(--text-soft)] py-8 text-center">
+                No hay laboratorios asignados a tu cuenta.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {salasVisibles.map((sala) => (
+                  <div
+                    key={sala.id}
+                    className="p-4 rounded-[14px] border border-[var(--border)] bg-[var(--background)]/50"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[11px] font-bold text-[var(--primary-dark)] bg-[var(--green-soft-strong)]/70 px-2 py-0.5 rounded border border-[var(--border)]">
+                          {sala.codigo}
+                        </span>
+                        <h4 className="font-semibold text-[var(--text)] text-[13px] mt-1.5 line-clamp-1">
+                          {sala.nombre}
+                        </h4>
+                        <p className="text-[11px] text-[var(--text-soft)] mt-0.5">{sala.edificio}</p>
+                      </div>
+
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          sala.estado === 'disponible'
+                            ? 'bg-[var(--green-soft-strong)] text-[var(--primary-dark)] border border-[var(--border)]'
+                            : sala.estado === 'ocupado'
+                            ? 'bg-[var(--warning-bg)] text-[var(--warning-text)] border border-[var(--warning-border)]'
+                            : 'bg-[var(--error-bg)] text-[var(--error)] border border-[var(--error-bg)]'
+                        }`}
+                      >
+                        {sala.estado}
                       </span>
-                      <h4 className="font-semibold text-[var(--text)] text-[13px] mt-1.5 line-clamp-1">
-                        {sala.nombre}
-                      </h4>
-                      <p className="text-[11px] text-[var(--text-soft)] mt-0.5">{sala.edificio}</p>
                     </div>
 
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                      sala.estado === 'disponible'
-                        ? 'bg-[var(--green-soft-strong)] text-[var(--primary-dark)] border border-[var(--border)]'
-                        : sala.estado === 'ocupado'
-                        ? 'bg-[var(--warning-bg)] text-[var(--warning-text)] border border-[var(--warning-border)]'
-                        : 'bg-[var(--error-bg)] text-[var(--error)] border border-[var(--error-bg)]'
-                    }`}>
-                      {sala.estado}
-                    </span>
+                    <div className="mt-3 pt-3 border-t border-[var(--border)]/60 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+                      <span>
+                        Capacidad: <strong>{sala.capacidad} estudiantes</strong>
+                      </span>
+                      <span>
+                        Gestor: <strong>{sala.gestorNombre || 'Sin asignar'}</strong>
+                      </span>
+                    </div>
                   </div>
-
-                  <div className="mt-3 pt-3 border-t border-[var(--border)]/60 flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-                    <span>Capacidad: <strong>{sala.capacidad} estudiantes</strong></span>
-                    <span>Gestor: <strong>{sala.gestorNombre?.split(' ')[1] || 'Asignado'}</strong></span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Quick Info & Matriz de Roles */}
-          <div className="bg-white rounded-[18px] border border-[var(--border)]  p-6 flex flex-col justify-between">
+          <div className="bg-white rounded-[18px] border border-[var(--border)] p-6 flex flex-col justify-between">
             <div>
-              <h3 className="font-bold text-[var(--text)] text-base mb-1">Matriz de Roles Activa</h3>
+              <h3 className="font-bold text-[var(--text)] text-base mb-1">Tu acceso</h3>
               <p className="text-[13px] text-[var(--text-soft)] mb-4">
-                Reglas de control de acceso aplicadas según tu sesión:
+                Permisos aplicados a tu sesión actual.
               </p>
 
-              <div className="space-y-3">
-                <div className={`p-3 rounded-[14px] border text-[13px] ${
-                  activeUser.rol === 'admin'
-                    ? 'bg-[var(--green-soft)] border-[var(--border)] text-[var(--primary-dark)]'
-                    : 'bg-[var(--background)] border-[var(--border)] text-[var(--text-muted)]'
-                }`}>
-                  <p className="font-bold">Administrador del Sistema</p>
-                  <p className="text-[11px] mt-0.5">Acceso irrestricto, configuración global, gestión de usuarios y auditoría.</p>
-                </div>
+              <div className="p-3 rounded-[14px] border bg-[var(--green-soft)] border-[var(--border)] text-[13px] text-[var(--primary-dark)]">
+                <p className="font-bold flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" />
+                  {activeUser.rol === 'admin' ? 'Administrador del sistema' : 'Gestor de laboratorio'}
+                </p>
+                <p className="text-[11px] mt-1">
+                  {activeUser.rol === 'admin'
+                    ? 'Acceso total: usuarios, salas, inventario, préstamos y analítica.'
+                    : `Supervisas ${(activeUser.laboratoriosAsignados || []).length} laboratorio(s): apruebas, rechazas, reasignas y registras devoluciones.`}
+                </p>
+              </div>
 
-                <div className={`p-3 rounded-[14px] border text-[13px] ${
-                  activeUser.rol === 'gestor'
-                    ? 'bg-[var(--green-soft)] border-[var(--border)] text-[var(--primary-dark)]'
-                    : 'bg-[var(--background)] border-[var(--border)] text-[var(--text-muted)]'
-                }`}>
-                  <p className="font-bold">Gestor de Laboratorio</p>
-                  <p className="text-[11px] mt-0.5">Evaluación de reservas (aprobar/denegar con motivo), reasignación de salas.</p>
-                </div>
-
-                <div className={`p-3 rounded-[14px] border text-[13px] ${
-                  activeUser.rol === 'estudiante' || activeUser.rol === 'docente'
-                    ? 'bg-[var(--green-soft)] border-[var(--border)] text-[var(--primary-dark)]'
-                    : 'bg-[var(--background)] border-[var(--border)] text-[var(--text-muted)]'
-                }`}>
-                  <p className="font-bold">Estudiante / Docente</p>
-                  <p className="text-[11px] mt-0.5">Solicitar préstamos, consultar inventario y consultar historial propio.</p>
-                </div>
+              <div className="mt-4 space-y-2">
+                <Link
+                  href="/prestamos"
+                  className="flex items-center justify-between px-3 py-2 rounded-[12px] border border-[var(--border)] hover:bg-[var(--green-soft)] transition-colors text-[13px] font-medium text-[var(--text)]"
+                >
+                  Ir a préstamos <ArrowRight className="w-3.5 h-3.5 text-[var(--text-soft)]" />
+                </Link>
+                <Link
+                  href="/inventario"
+                  className="flex items-center justify-between px-3 py-2 rounded-[12px] border border-[var(--border)] hover:bg-[var(--green-soft)] transition-colors text-[13px] font-medium text-[var(--text)]"
+                >
+                  Revisar inventario <ArrowRight className="w-3.5 h-3.5 text-[var(--text-soft)]" />
+                </Link>
+                <Link
+                  href="/analitica"
+                  className="flex items-center justify-between px-3 py-2 rounded-[12px] border border-[var(--border)] hover:bg-[var(--green-soft)] transition-colors text-[13px] font-medium text-[var(--text)]"
+                >
+                  Ver analítica <BarChart3 className="w-3.5 h-3.5 text-[var(--text-soft)]" />
+                </Link>
+                {activeUser.rol === 'admin' && (
+                  <Link
+                    href="/usuarios"
+                    className="flex items-center justify-between px-3 py-2 rounded-[12px] border border-[var(--border)] hover:bg-[var(--green-soft)] transition-colors text-[13px] font-medium text-[var(--text)]"
+                  >
+                    Gestionar usuarios <Users className="w-3.5 h-3.5 text-[var(--text-soft)]" />
+                  </Link>
+                )}
               </div>
             </div>
 
             <div className="mt-6 pt-4 border-t border-[var(--border)] flex items-center justify-between text-[13px] text-[var(--text-soft)]">
-              <span>Next.js API Routes</span>
-              <span className="font-semibold text-[var(--primary)]">RESTful Active</span>
+              <span>{stats?.gestores ?? 0} gestores · {stats?.admins ?? 0} admins</span>
+              <span className="font-semibold text-[var(--primary)]">PrestaLab</span>
             </div>
           </div>
         </div>
