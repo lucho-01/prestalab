@@ -144,7 +144,7 @@ export default function SalasPage() {
         subtitle="Control de infraestructura de laboratorios, capacidad física y gestores asignados."
       />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-bold text-[var(--text)] text-lg">Catálogo Maestro de Laboratorios</h3>
@@ -282,7 +282,7 @@ export default function SalasPage() {
         {/* MODAL CREAR / EDITAR SALA */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-[rgba(24,28,26,0.45)]  flex items-center justify-center p-4 z-50 animate-fadeIn">
-            <div className="bg-white rounded-[18px] max-w-lg w-full p-6  border border-[var(--border)] space-y-4">
+            <div className="bg-white rounded-[18px] max-w-lg w-full p-6 border border-[var(--border)] space-y-4 max-h-[85vh] overflow-y-auto scroll-thin">
               <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
                 <h3 className="font-bold text-[var(--text)] text-base">
                   {editingSala ? 'Editar Laboratorio' : 'Registrar Nuevo Laboratorio'}

@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { useActiveRole } from '@/context/RoleContext';
+import { SidebarProvider } from '@/context/SidebarContext';
 
 /**
  * Estructura del portal. Mientras se resuelve la sesión no se renderiza el
@@ -40,11 +41,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden" style={{ background: 'var(--background)' }}>
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto scroll-thin">
-        {children}
+    <SidebarProvider>
+      <div
+        className="flex h-[100dvh] w-full overflow-hidden"
+        style={{ background: 'var(--background)' }}
+      >
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto scroll-thin">
+          {children}
+        </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

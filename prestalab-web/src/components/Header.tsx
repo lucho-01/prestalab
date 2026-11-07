@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, LogOut } from 'lucide-react';
+import { Bell, Check, LogOut, Menu } from 'lucide-react';
 import { useActiveRole } from '@/context/RoleContext';
+import { useSidebar } from '@/context/SidebarContext';
 
 const ROL_LABEL: Record<string, string> = {
   admin: 'Administrador',
@@ -21,6 +22,7 @@ export default function Header({
   subtitle?: string;
 }) {
   const { activeUser, logout } = useActiveRole();
+  const { toggle: toggleSidebar } = useSidebar();
   const [notificaciones, setNotificaciones] = useState<
     Array<{ id: string; titulo: string; mensaje: string; leida: boolean; fecha?: string }>
   >([]);
@@ -61,16 +63,31 @@ export default function Header({
 
   return (
     <header
-      className="sticky top-0 z-30 px-6 lg:px-10 py-5 flex items-center justify-between gap-4"
+      className="sticky top-0 z-30 pl-3 pr-4 sm:pl-6 sm:pr-6 lg:pl-10 lg:pr-10 py-4 sm:py-5 flex items-center justify-between gap-3"
       style={{
         background: 'rgba(245, 251, 246, 0.9)',
         backdropFilter: 'blur(8px)',
         borderBottom: '1px solid var(--border)',
       }}
     >
-      <div className="min-w-0">
-        <h1 className="page-title truncate">{title}</h1>
-        {subtitle ? <p className="page-subtitle truncate">{subtitle}</p> : null}
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        {/* Botón de menú: en móvil el sidebar se despliega hacia la derecha */}
+        <button
+          onClick={toggleSidebar}
+          title="Abrir menú"
+          aria-label="Abrir menú de navegación"
+          className="lg:hidden w-10 h-10 rounded-[12px] flex items-center justify-center shrink-0 transition-colors"
+          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--green-soft)')}
+          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+        >
+          <Menu size={20} />
+        </button>
+
+        <div className="min-w-0">
+          <h1 className="page-title truncate">{title}</h1>
+          {subtitle ? <p className="page-subtitle truncate">{subtitle}</p> : null}
+        </div>
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
@@ -97,7 +114,7 @@ export default function Header({
 
           {showNotifMenu && (
             <div
-              className="absolute right-0 mt-2 w-[340px] card p-4 z-50"
+              className="absolute right-0 mt-2 w-[340px] max-w-[calc(100vw-1.5rem)] card p-4 z-50"
               style={{ boxShadow: '0 18px 40px rgba(24, 28, 26, 0.12)' }}
             >
               <div className="flex items-center justify-between pb-3">

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -11,8 +11,10 @@ import {
   Users,
   BarChart3,
   LogOut,
+  X,
 } from 'lucide-react';
 import { useActiveRole } from '@/context/RoleContext';
+import { useSidebar } from '@/context/SidebarContext';
 import Brand from '@/components/Brand';
 
 const ROL_LABEL: Record<string, string> = {
@@ -23,6 +25,21 @@ const ROL_LABEL: Record<string, string> = {
 export default function Sidebar() {
   const pathname = usePathname();
   const { activeUser, logout } = useActiveRole();
+  const { open, close } = useSidebar();
+
+  // Cierra el cajón al navegar o al pulsar Escape (solo aplica en móvil).
+  useEffect(() => {
+    close();
+  }, [pathname, close]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, close]);
 
   const navItems = [
     { label: 'Inicio', href: '/', icon: LayoutDashboard, roles: ['admin', 'gestor'] },
@@ -42,13 +59,34 @@ export default function Sidebar() {
   };
 
   return (
-    <aside
-      className="w-[264px] shrink-0 flex flex-col select-none"
-      style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
-    >
+    <>
+      {/* Fondo oscurecido detrás del cajón (solo móvil) */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 lg:hidden"
+          style={{ background: 'rgba(24, 28, 26, 0.45)' }}
+          onClick={close}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-[264px] max-w-[85vw] shrink-0 flex flex-col select-none transition-transform duration-200 ease-out lg:static lg:z-auto lg:max-w-none lg:translate-x-0 lg:transition-none ${
+          open ? 'translate-x-0 shadow-2xl lg:shadow-none' : '-translate-x-full'
+        }`}
+        style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
+      >
       {/* Marca */}
-      <div className="px-5 pt-6 pb-5">
+      <div className="px-5 pt-6 pb-5 flex items-center justify-between gap-2">
         <Brand />
+        <button
+          onClick={close}
+          title="Cerrar menú"
+          className="lg:hidden w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
+          style={{ color: 'var(--text-soft)' }}
+        >
+          <X size={16} />
+        </button>
       </div>
 
       {/* Navegación */}
@@ -129,6 +167,7 @@ export default function Sidebar() {
           </button>
         </div>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

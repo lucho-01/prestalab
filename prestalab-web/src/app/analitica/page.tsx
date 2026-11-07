@@ -310,7 +310,7 @@ export default function AnaliticaPage() {
         subtitle="Reportes interactivos y analítica avanzada con Highcharts: Inventario, Uso de Espacios, Préstamos y Segmentación Demográfica."
       />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
         {/* Selector de Pestaña Principal */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -383,7 +383,7 @@ export default function AnaliticaPage() {
 
         {/* Panel de Filtros Compartido Dinámico */}
         <div className="bg-white p-5 rounded-[18px] border border-[var(--border)]  space-y-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-[13px] font-bold text-[var(--text)]">
               <Filter className="w-4 h-4 text-[var(--primary)]" />
               <span>Filtros Paramétricos del Reporte ({activeTab.replace('_', ' ').toUpperCase()})</span>
@@ -626,7 +626,7 @@ export default function AnaliticaPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-[13px]">
+                <table className="w-full min-w-[680px] text-left border-collapse text-[13px]">
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--background)] text-[var(--text-muted)] font-bold uppercase tracking-wider text-[10px]">
                       <th className="p-3">Código</th>
@@ -833,7 +833,7 @@ export default function AnaliticaPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-[13px]">
+                <table className="w-full min-w-[680px] text-left border-collapse text-[13px]">
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--background)] text-[var(--text-muted)] font-bold uppercase tracking-wider text-[10px]">
                       <th className="p-3">Solicitante</th>
@@ -944,7 +944,7 @@ export default function AnaliticaPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse text-[13px]">
+                <table className="w-full min-w-[680px] text-left border-collapse text-[13px]">
                   <thead>
                     <tr className="border-b border-[var(--border)] bg-[var(--background)] text-[var(--text-muted)] font-bold uppercase tracking-wider text-[10px]">
                       <th className="p-3">Usuario</th>

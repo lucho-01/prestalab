@@ -80,7 +80,7 @@ export default function DashboardPage() {
         subtitle={`Bienvenido, ${activeUser.nombre}. Resumen operativo de PrestaLab.`}
       />
 
-      <main className="p-8 space-y-8 max-w-7xl mx-auto w-full">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl mx-auto w-full">
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
           <div className="bg-white p-6 rounded-[18px] border border-[var(--border)]">

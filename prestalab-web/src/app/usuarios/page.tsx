@@ -187,7 +187,7 @@ export default function UsuariosPage() {
         subtitle="Cuentas con acceso a PrestaLab: administradores y gestores de laboratorio."
       />
 
-      <main className="p-8 space-y-6 max-w-7xl mx-auto w-full">
+      <main className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
         {/* Resumen */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-white p-5 rounded-[18px] border border-[var(--border)]">
@@ -222,7 +222,7 @@ export default function UsuariosPage() {
         {/* Toolbar */}
         <div className="bg-white p-5 rounded-[18px] border border-[var(--border)] flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <div className="relative min-w-[260px]">
+            <div className="relative w-full sm:w-auto sm:min-w-[260px]">
               <Search className="w-4 h-4 text-[var(--text-soft)] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -273,7 +273,7 @@ export default function UsuariosPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-[13px]">
+              <table className="w-full min-w-[680px] text-left border-collapse text-[13px]">
                 <thead>
                   <tr className="border-b border-[var(--border)] bg-[var(--background)]/90 text-[var(--text-muted)] font-bold uppercase tracking-wider text-[10px]">
                     <th className="p-4">Usuario</th>
@@ -375,7 +375,7 @@ export default function UsuariosPage() {
         {/* MODAL CREAR / EDITAR */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-[rgba(24,28,26,0.45)] flex items-center justify-center p-4 z-50 animate-fadeIn">
-            <div className="bg-white rounded-[18px] max-w-lg w-full p-6 border border-[var(--border)] space-y-4">
+            <div className="bg-white rounded-[18px] max-w-lg w-full p-6 border border-[var(--border)] space-y-4 max-h-[85vh] overflow-y-auto scroll-thin">
               <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
                 <h3 className="font-bold text-[var(--text)] text-base">
                   {editingUser
